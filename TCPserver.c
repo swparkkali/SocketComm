@@ -30,6 +30,14 @@ typedef struct client
     bool used; // KPP_TRUE or KPP_FALSE
 } KPP_CLIENT;
 
+typedef struct
+{
+    char name[12];
+    int age;
+    char gender[8];
+    int height;
+} KPP_PERSON;
+
 int main(int argc, char *argv[])
 {
     int Reuse_addr_used = KPP_TRUE;
@@ -92,7 +100,7 @@ int main(int argc, char *argv[])
               struct sockaddr_in clnt_adr = {};
               socklen_t clnt_adr_sz = sizeof(clnt_adr);
 
-              int clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_adr, &clnt_adr_sz);
+              int clnt_sock = accept(serv_sock, (KPP_SA*)&clnt_adr, &clnt_adr_sz);
 
               for (int idx = 0 ; idx < KPP_CLNT_NUM; idx++)
               {
@@ -109,8 +117,11 @@ int main(int argc, char *argv[])
                     
                     //getsockname(clnt_sock, (KPP_SA*)&clnt_adr, &clnt_adr_sz);
                     //write(clnt_sock, ntohs(clnt_adr.sin_port), sizeof(ntohs(clnt_adr.sin_port)));
-                    printf("[%d:%s:%u] > \n", clnt_sock, inet_ntoa(clnt_adr.sin_addr), ntohs(clnt_adr.sin_port));
-
+                    printf("[%d:%s:%d] > \n", clnt_sock, inet_ntoa(clnt_adr.sin_addr), ntohs(clnt_adr.sin_port));
+                  
+                    //unsigned int* clnt_ip = ntohs(clnt_adr.sin_port);
+                    //write(clnt_sock, clnt_ip,sizeof(clnt_ip));
+                     
                     for(int idx = 0; idx < KPP_CLNT_NUM; idx++)
                        printf("Client[%d].fd = %d\t used = %d\n", idx, clnt_list[idx].fd, clnt_list[idx].used);
                     printf("\n");
@@ -130,11 +141,13 @@ int main(int argc, char *argv[])
            }
            else
            {
+              KPP_PERSON* tmpPerson = (KPP_PERSON*)buf;
+
               for(int idx = 0; idx < KPP_CLNT_NUM; idx++)
               {
                  if (FD_ISSET(clnt_list[idx].fd, &cpy_reads))
                  {
-                    int str_len = read(clnt_list[idx].fd, buf, KPP_BUF_SIZE);
+                    int str_len = read(clnt_list[idx].fd, tmpPerson, KPP_BUF_SIZE);
                     if (str_len == 0)
                     {
                        FD_CLR(clnt_list[idx].fd, &reads);
@@ -149,8 +162,10 @@ int main(int argc, char *argv[])
                     }
                     else
                     {
-                       write(clnt_list[idx].fd, buf, str_len);
-                       printf("FD-%d client said : %s", clnt_list[idx].fd, buf);
+                       printf("FD-%d client said : %s\n", clnt_list[idx].fd, tmpPerson->name);
+                       printf("FD-%d client said : %s\n", clnt_list[idx].fd, tmpPerson->gender);
+                       printf("FD-%d client said : %d\n", clnt_list[idx].fd, tmpPerson->age);
+                       printf("FD-%d client said : %d\n", clnt_list[idx].fd, tmpPerson->height);
                     }
                  }
               }        
@@ -170,8 +185,6 @@ void error_handler(char* message)
 
 void signal_handler(int signo)
 {
-   const char *message = "Server has closed. Connection out.\n";
-
    if (signo == SIGINT)
    {
       printf("\n\nSIGINT raised..\n");
