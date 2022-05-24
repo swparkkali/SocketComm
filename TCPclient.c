@@ -26,7 +26,7 @@ typedef struct
 typedef struct
 {
    char *ip;
-   //int port;
+   char server[10];
 } KPP_CLIENT;
 
 typedef struct
@@ -55,7 +55,8 @@ int main(int argc, char **argv)
 
    KPP_CLIENT client;
    client.ip = getting_ip();
- 
+   strcpy(client.server, "Ubuntu");
+    
 	signal(SIGINT, signal_handler);
    memset(&buff, 0x00, KPP_BUF_SIZE);
 	int clnt_sock, str_len;

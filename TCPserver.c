@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
@@ -19,16 +20,10 @@
 void error_handler(char* message);
 void signal_handler(int signo);
 
-static int Serv_sock_fd;
-static int Clnt_sock_fd;
-static int Reuse_addr_used = KPP_TRUE;
-static int Connect_clnt_cnt = 0;
-
-typedef struct client
-{
-    int fd;   // input their fild descripter. 
-    bool used; // KPP_TRUE or KPP_FALSE
-} KPP_CLIENT;
+static int ServSockFD;
+static int ClntSockFD;
+static int ReuseAddrFlag = KPP_TRUE;
+static int ConnectedClntCnt = 0;
 
 typedef struct
 {
@@ -38,9 +33,22 @@ typedef struct
     int height;
 } KPP_PERSON;
 
+typedef struct
+{
+   char *ip;
+   char server[10];
+} KPP_CLIENT;
+
+typedef struct client
+{
+    int fd;   // input their fild descripter. 
+    bool used; // KPP_TRUE or KPP_FALSE
+} KPP_CLIENT_STATUS;
+
+
 int main(int argc, char *argv[])
 {
-    int Reuse_addr_used = KPP_TRUE;
+    int ReuseAddrFlag = KPP_TRUE;
 
     struct sockaddr_in serv_adr = {};
     int serv_sock = socket(PF_INET, SOCK_STREAM, 0);
@@ -50,7 +58,7 @@ int main(int argc, char *argv[])
     serv_adr.sin_port = htons(KPP_PORT);
 
     signal(SIGINT, signal_handler);
-    setsockopt(serv_sock, SOL_SOCKET, SO_REUSEADDR, &Reuse_addr_used, sizeof(Reuse_addr_used));
+    setsockopt(serv_sock, SOL_SOCKET, SO_REUSEADDR, &ReuseAddrFlag, sizeof(ReuseAddrFlag));
     
     if (bind(serv_sock, (KPP_SA*) &serv_adr, sizeof(serv_adr)) == -1)
        error_handler("bind() error");
@@ -71,7 +79,7 @@ int main(int argc, char *argv[])
     FD_SET(serv_sock, &reads);
     struct timeval timeout;
     
-    KPP_CLIENT clnt_list[KPP_CLNT_NUM];
+    KPP_CLIENT_STATUS clnt_list[KPP_CLNT_NUM];
     memset(&clnt_list, 0x00, sizeof(clnt_list));
     
     char buf[KPP_BUF_SIZE];
@@ -129,14 +137,14 @@ int main(int argc, char *argv[])
                  }
               }
 
-              Connect_clnt_cnt++;
-              if (Connect_clnt_cnt > KPP_CLNT_NUM)
+              ConnectedClntCnt++;
+              if (ConnectedClntCnt > KPP_CLNT_NUM)
               {
                  const char *message = "Client request a connection, but queue is full.. drop the connection.";
                  printf("%s\n", message);
                  write(clnt_sock, message, sizeof(message));
                  close(clnt_sock);
-                 Connect_clnt_cnt--;
+                 ConnectedClntCnt--;
               }
            }
            else
@@ -152,7 +160,7 @@ int main(int argc, char *argv[])
                     {
                        FD_CLR(clnt_list[idx].fd, &reads);
                        clnt_list[idx].used = KPP_FALSE;
-                       Connect_clnt_cnt--;
+                       ConnectedClntCnt--;
 
                        printf("** FD-%d Client disconnected. **\n", clnt_list[idx].fd);
                        close(clnt_list[idx].fd);
@@ -188,8 +196,8 @@ void signal_handler(int signo)
    if (signo == SIGINT)
    {
       printf("\n\nSIGINT raised..\n");
-      close(Serv_sock_fd);
-      close(Clnt_sock_fd);
+      close(ServSockFD);
+      close(ClntSockFD);
       printf("Socket Closed..\n");
       printf("Terminated..\n");
       exit(1);
